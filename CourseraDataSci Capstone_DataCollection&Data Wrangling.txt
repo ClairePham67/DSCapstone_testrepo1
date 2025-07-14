@@ -1,0 +1,487 @@
+DATA COLLECTION API:
+SPACEX Api: https://api.spacexdata.com/v4/
+https://api.spacexdata.com/v4/launches/past
+
+#Convert json to  dataframe using json_normalize function
+data = pd.json_normalize(response.json())
+
+Data Wrangling Problems: transform this raw data into a clean dataset which provides meaningful data
+- Wrangling Data using API: columns with no actual data, we will need to use API again targeting another endpoint to gather specific data for each ID number. The data will be stored in list
+- Sampling Data: filter data/ remove data that we dont need
+- Dealing with Nulls: replace the null values with the mean
+
+
+SpaceX Falcon 9 first stage Landing Prediction Project
+
+Lab1: Collecting the data
+# Requests allows us to make HTTP requests which we will use to get data from an API
+import requests
+# Pandas is a software library written for the Python programming language for data manipulation and analysis.
+import pandas as pd
+# NumPy is a library for the Python programming language, adding support for large, multi-dimensional arrays and matrices, along with a large collection of high-level mathematical functions to operate on these arrays
+import numpy as np
+# Datetime is a library that allows us to represent dates
+import datetime
+
+# Setting this option will print all collumns of a dataframe
+pd.set_option('display.max_columns', None)
+# Setting this option will print all of the data in a feature
+pd.set_option('display.max_colwidth', None)
+# Takes the dataset and uses the rocket column to call the API and append the data to the list
+def getBoosterVersion(data):
+    for x in data['rocket']:
+       if x:
+        response = requests.get("https://api.spacexdata.com/v4/rockets/"+str(x)).json()
+        BoosterVersion.append(response['name'])
+
+# Takes the dataset and uses the launchpad column to call the API and append the data to the list
+def getLaunchSite(data):
+    for x in data['launchpad']:
+       if x:
+         response = requests.get("https://api.spacexdata.com/v4/launchpads/"+str(x)).json()
+         Longitude.append(response['longitude'])
+         Latitude.append(response['latitude'])
+         LaunchSite.append(response['name'])
+# Takes the dataset and uses the payloads column to call the API and append the data to the lists
+def getPayloadData(data):
+    for load in data['payloads']:
+       if load:
+        response = requests.get("https://api.spacexdata.com/v4/payloads/"+load).json()
+        PayloadMass.append(response['mass_kg'])
+        Orbit.append(response['orbit'])
+# Takes the dataset and uses the cores column to call the API and append the data to the lists
+def getCoreData(data):
+    for core in data['cores']:
+            if core['core'] != None:
+                response = requests.get("https://api.spacexdata.com/v4/cores/"+core['core']).json()
+                Block.append(response['block'])
+                ReusedCount.append(response['reuse_count'])
+                Serial.append(response['serial'])
+            else:
+                Block.append(None)
+                ReusedCount.append(None)
+                Serial.append(None)
+            Outcome.append(str(core['landing_success'])+' '+str(core['landing_type']))
+            Flights.append(core['flight'])
+            GridFins.append(core['gridfins'])
+            Reused.append(core['reused'])
+            Legs.append(core['legs'])
+            LandingPad.append(core['landpad'])
+
+
+#Requesting rocket launch data from SpaceX Api
+spacex_url="https://api.spacexdata.com/v4/launches/past"
+response = requests.get(spacex_url)
+print(response.content)
+
+Task 1: Request and parse the SpaceX launch data using the GET request
+static_json_url='https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/API_call_spacex_api.json'
+response=requests.get(static_json_url)
+response.status_code
+
+# Use json_normalize meethod to convert the json result into a dataframe
+data = pd.json_normalize(response.json())
+# Get the head of the dataframe
+print(data.head())
+
+
+# Lets take a subset of our dataframe keeping only the features we want and the flight number, and date_utc.
+data = data[['rocket', 'payloads', 'launchpad', 'cores', 'flight_number', 'date_utc']]
+
+# We will remove rows with multiple cores because those are falcon rockets with 2 extra rocket boosters and rows that have multiple payloads in a single rocket.
+data = data[data['cores'].map(len)==1]
+data = data[data['payloads'].map(len)==1]
+
+# Since payloads and cores are lists of size 1 we will also extract the single value in the list and replace the feature.
+data['cores'] = data['cores'].map(lambda x : x[0]) ##For each value in the 'cores' column of the data DataFrame, apply a function that takes the first element of x (i.e., x[0]).
+data['payloads'] = data['payloads'].map(lambda x : x[0])
+
+# We also want to convert the date_utc to a datetime datatype and then extracting the date leaving the time
+data['date'] = pd.to_datetime(data['date_utc']).dt.date
+
+# Using the date we will restrict the dates of the launches
+data = data[data['date'] <= datetime.date(2020, 11, 13)]
+
+#Global variables 
+BoosterVersion = []
+PayloadMass = []
+Orbit = []
+LaunchSite = []
+Outcome = []
+Flights = []
+GridFins = []
+Reused = []
+Legs = []
+LandingPad = []
+Block = []
+ReusedCount = []
+Serial = []
+Longitude = []
+Latitude = []
+BoosterVersion
+# Call getBoosterVersion
+getBoosterVersion(data)
+
+# Call getLaunchSite
+getLaunchSite(data)
+# Call getPayloadData
+getPayloadData(data)
+# Call getCoreData
+getCoreData(data)
+
+#Combine the column into a dict
+launch_dict = {'FlightNumber': list(data['flight_number']),
+'Date': list(data['date']),
+'BoosterVersion':BoosterVersion,
+'PayloadMass':PayloadMass,
+'Orbit':Orbit,
+'LaunchSite':LaunchSite,
+'Outcome':Outcome,
+'Flights':Flights,
+'GridFins':GridFins,
+'Reused':Reused,
+'Legs':Legs,
+'LandingPad':LandingPad,
+'Block':Block,
+'ReusedCount':ReusedCount,
+'Serial':Serial,
+'Longitude': Longitude,
+'Latitude': Latitude}
+
+#Check the len of each list
+for key, value in launch_dict.items():
+    print(f"{key}: {len(value)}")
+
+output: shows BoosterVersion is 282 while others have 94
+#Match the length of BossterVersion with one that has correct length
+expected_length = len(launch_dict['FlightNumber'])  # or any other correct column
+launch_dict['BoosterVersion'] = BoosterVersion[:expected_length]
+
+#create a dataframe from this dict
+launch_df = pd.DataFrame(launch_dict)
+# Show the head of the dataframe
+print(launch_df.head())
+
+Task 2: Filter the dataframe to only include Falcon 9  launches
+# returns a boolean Series where True means the row contains 'Falcon 9', and exclude missing values instead raising the error
+data_falcon9 = launch_df[launch_df['BoosterVersion'].str.contains('Falcon 9', na=False)]
+#Reset the FlightNumber col
+data_falcon9.loc[:,'FlightNumber'] = list(range(1, data_falcon9.shape[0]+1))
+data_falcon9
+
+Data Wrangling
+#to see missing values in our dataset
+data_falcon9.isnull().sum()
+#Calculate the mean payload
+mean_payload = data_falcon9['PayloadMass'].mean()
+print("Mean Payload Mass:", mean_payload)
+#Replace mean payload with na
+data_falcon9['PayloadMass'].fillna(mean_payload, inplace=True)
+#Export it to a CSV file
+data_falcon9['Payload Mass'].fillna(mean_payload, inplace=True)
+
+Complete Data Collection with Web Scraping
+Objs: Wep scrap Falcon 9 launch records with BeautifulSoup
+- Extract a Falcon9 launch records HTML table from Wiki
+- Parse the table and convert it into a Pandas data frame
+#Import packages 
+!pip3 install beautifulsoup4
+!pip3 install requests
+
+import sys
+import requests
+from bs4 import BeautifulSoup
+import re
+import unicodedata
+import pandas as pd
+
+#list(table_cells.strings): return all text strings from inside the HTML element, including child tags. [0:2]: slices first 2 items, date and time
+def date_time(table_cells):
+    """
+    This function returns the data and time from the HTML  table cell
+    Input: the  element of a table data cell extracts extra row
+    """
+    return [data_time.strip() for data_time in list(table_cells.strings)][0:2]
+
+#enumerate(): assigns an index i to each string. i%2 == 0: keeps only even index strings.[0:-1]: slices off the last item.  ''.join([...]): selected string without spaces into one single string. 
+def booster_version(table_cells):
+    out=''.join([booster_version for i,booster_version in enumerate( table_cells.strings) if i%2==0][0:-1])
+    return out
+#=>Extract all text strings from the HTML cell, pick only the ones at even positions (0, 2, 4, ...), drop the last one, and then join the rest into one continuous string (no spaces).
+
+def landing_status(table_cells):
+    out=[i for i in table_cells.strings][0]
+    return out
+
+def get_mass(table_cells):
+    mass=unicodedata.normalize("NFKD", table_cells.text).strip() #standardizes characters, gets all visible text from HTML, and removes leading and trailing whitespace. 
+
+    if mass:
+        mass.find("kg") #returns index where 'kg' first appears
+        new_mass=mass[0:mass.find("kg")+2] #slices the string up to the kg unit. ex: 4,500 kg
+    else:
+        new_mass=0
+    return new_mass
+
+def extract_column_from_header(row):
+    """
+    This function returns the landing status from the HTML table cell 
+    Input: the  element of a table data cell extracts extra row
+    """
+#Removes <br>, <a>, and <sup> tags if they exist inside the row.
+    if (row.br):
+        row.br.extract()
+    if row.a:
+        row.a.extract()
+    if row.sup:
+        row.sup.extract()
+        
+    colunm_name = ' '.join(row.contents) #join the raw contents (remaining tags and strings)
+    
+    # Filter the digit and empty names
+    if not(colunm_name.strip().isdigit()):
+        colunm_name = colunm_name.strip()
+        return colunm_name    
+
+
+###OTHER way:
+def extract_column_from_header(row):
+	for tag in ['br', 'a', 'sup']:
+        if row.find(tag):
+            row.find(tag).extract()
+    
+    	# Get all visible text from the row
+    	column_name = row.get_text(separator=" ", strip=True)
+
+    	# return if the cleaned name is not just a digit
+    	if not column_name.isdigit():
+        	return column_name
+    	return None
+
+static_url = "https://en.wikipedia.org/w/index.php?title=List_of_Falcon_9_and_Falcon_Heavy_launches&oldid=1027686922"
+
+TASK 1: Request the Falcon9 Launch Wiki page from its URL
+#Perfom an HTTP GET method to request the Falcon9 Launch HTML page, as an HTTP response
+# use requests.get() method with the provided static_url
+response = requests.get(static_url)
+# assign the response to a object
+response.status_code
+
+#Create a BeautifulSoup obj from the HTML response/parses the HTML so you can extract tables, text, or elements. 
+soup = BeautifulSoup(response.text, 'html.parser')
+#print the page title to verify if the object was created properly
+print("Page Title:", soup.title.string)
+
+- Send a request to the webpage (e.g., using requests.get()).
+- Receive the HTML content of the page.
+- Parse the HTML using a tool like BeautifulSoup or lxml.
+- Extract the data you're interested in (e.g., table rows, links, images).
+- Store or analyze the data (e.g., in CSV, database, or a Python DataFrame).
+
+
+
+TASK 2: Extract all col/variable names from the HTML table header.
+#Find element type 'tables', and save it as a list
+html_tables = soup.find_all('table')
+
+# Let's print the third table and check its content
+first_launch_table = html_tables[2]
+print(first_launch_table)
+
+column_names = []
+# Apply find_all() function with `th` element on first_launch_table
+th_elm = first_launch_table.find_all('th')
+# Iterate each th element and apply the provided extract_column_from_header() to get a column name
+for th in th_elm:
+    col_name = extract_column_from_header(th)
+    # Append the Non-empty column name (`if name is not None and len(name) > 0`) into a list called column_names
+    if col_name is not None and len(col_name) > 0:
+        column_names.append(col_name)
+print(column_names)
+
+#Create an empty dict with keys from the extracted col names. This dict will be converted into a Pandas df
+launch_dict= dict.fromkeys(column_names)
+
+# Remove an irrelvant column
+del launch_dict['Date and time ( )']
+
+# Let's initial the launch_dict with each value to be an empty list
+launch_dict['Flight No.'] = []
+launch_dict['Launch site'] = []
+launch_dict['Payload'] = []
+launch_dict['Payload mass'] = []
+launch_dict['Orbit'] = []
+launch_dict['Customer'] = []
+launch_dict['Launch outcome'] = []
+# Added some new columns
+launch_dict['Version Booster']=[]
+launch_dict['Booster landing']=[]
+launch_dict['Date']=[]
+launch_dict['Time']=[]
+
+
+extracted_row = 0
+#Extract each table 
+for table_number,table in enumerate(soup.find_all('table',"wikitable plainrowheaders collapsible")):
+   # get table row 
+    for rows in table.find_all("tr"):
+        #check to see if first table heading is as number corresponding to launch a number 
+        if rows.th:
+            if rows.th.string:
+                flight_number=rows.th.string.strip()
+                flag=flight_number.isdigit()
+        else:
+            flag=False
+        #get table element 
+        row=rows.find_all('td')
+	#Append flight_number into launch_dict with key "Flight No."
+        launch_dict["Flight No."].append(flight_number)
+	
+	#Date and time
+	datetimelist = date_time(row[0])
+	# Date value
+        # TODO: Append the date into launch_dict with key `Date`
+        date = datatimelist[0].strip(',')
+        launch_dict["Date"].append(date)
+            
+         # Time value
+         #Append the time into launch_dict with key `Time`
+         time = datatimelist[1]
+         launch_dict["Time"].append(time)
+              
+         # Booster version
+         # TODO: Append the bv into launch_dict with key `Version Booster`
+         bv=booster_version(row[1])
+         if not(bv):
+            bv=row[1].a.string
+         launch_dict["Version Booster"].append(bv)
+            
+         # Launch Site
+         # TODO: Append the bv into launch_dict with key `Launch Site`
+         launch_site = row[2].a.string
+         launch_dict["Launch site"].append(launch_site)
+            
+         # Payload
+         # TODO: Append the payload into launch_dict with key `Payload`
+         payload = row[3].a.string
+         launch_dict["Payload"].append(payload)
+            
+         # Payload Mass
+         # TODO: Append the payload_mass into launch_dict with key `Payload mass`
+         payload_mass = get_mass(row[4])
+         launch_dict["Payload mass"].append(payload_mass)
+            
+         # Orbit
+         # TODO: Append the orbit into launch_dict with key `Orbit`
+         orbit = row[5].a.string
+         launch_dict["Orbit"].append(orbit)
+            
+         # Customer
+         # TODO: Append the customer into launch_dict with key `Customer`
+         if row[6].a:
+            customer = row[6].a.string
+         else:
+            customer = row[6].get_text(strip=True)
+         launch_dict["Customer"].append(customer)
+            
+         # Launch outcome
+         # TODO: Append the launch_outcome into launch_dict with key `Launch outcome`
+         launch_outcome = list(row[7].strings)[0]
+         launch_dict["Launch outcome"].append(launch_outcome)
+            
+         # Booster landing
+         # TODO: Append the launch_outcome into launch_dict with key `Booster landing`
+         booster_landing = landing_status(row[8])
+         launch_dict["Booster landing"].append(booster_landing)
+
+#Create DataFrame
+for key, value in launch_dict.items():
+	df = pd.DataFrame(key:pd.Series(value)) #pd.Series() method: when lengths are not equal
+#Export to CSV
+df.to_csv('spacex_web_scraped.csv', index=False)
+
+
+DATA WRANGLING (process of transforming and cleaning raw data into a usable and structured format for analysis)
+!pip install pandas
+!pip install numpy
+
+import pandas as pd
+import numpy as np
+
+#Load Dataset
+df = pd.read_csv("https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_1.csv")
+df.head(10)
+
+TASK 1:
+#Identify and calculate the percentage of the missing values in each attribute
+df.isnull().sum()/len(df)*100
+#Identify which cols are numerical and categorical
+df.dtypes
+
+TASK 2:
+# Apply value_counts() on column LaunchSite
+num_launch_site = df['LaunchSite'].value_counts
+print(num_launch_site)
+=> LaunchSite
+CCAFS SLC 40    55
+KSC LC 39A      22
+VAFB SLC 4E     13
+Name: count, dtype: int64
+
+
+TASK 3:Calculate the number and occurrence of mission outcome of the orbits
+# landing_outcomes = values on Outcome column
+landing_outcomes = df["Outcome"].value_counts()
+print(landing_outcomes)
+
+for i,outcome in enumerate(landing_outcomes.keys()):
+    print(i,outcome)
+=>0 True ASDS
+1 None None
+2 True RTLS
+3 False ASDS
+4 True Ocean
+5 False Ocean
+6 None ASDS
+7 False RTLS
+
+#Create a set of outcomes where 2nd stage did not land successfully
+bad_outcomes=set(landing_outcomes.keys()[[1,3,5,6,7]])
+bad_outcomes
+=>{'False ASDS', 'False Ocean', 'False RTLS', 'None ASDS', 'None None'}
+
+# landing_class = 0 if bad_outcome
+# landing_class = 1 otherwise
+if outcome in bad_outcomes:
+    for outcome in df["Outcome"]:
+        landing_class = 0
+else:
+    landing_class = 1
+#Class variable to represents the outcome of each launch above
+df['Class']=landing_class
+df[['Class']].head(8)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
