@@ -1,0 +1,57 @@
+EXPLORATORY ANALYSIS USING SQL
+
+SpaceX DataSet
+
+!pip install ipython-sql
+!pip install ipython-sql prettytable
+%load_ext sql
+import csv, sqlite3
+import prettytable
+prettytable.DEFAULT = 'DEFAULT'
+
+con = sqlite3.connect("my_data1.db")
+cur = con.cursor()
+!pip install -q pandas
+%sql sqlite:///my_data1.db
+
+import pandas as pd
+df = pd.read_csv("https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/labs/module_2/data/Spacex.csv")
+df.to_sql("SPACEXTBL", con, if_exists='replace', index=False,method="multi")
+
+#DROP THE TABLE IF EXISTS
+
+%sql DROP TABLE IF EXISTS SPACEXTABLE;
+
+%sql create table SPACEXTABLE as select * from SPACEXTBL where Date is not null
+
+
+#Display names of the unique launch sites
+%sql create table SPACEXTABLE as select * from SPACEXTBL where Date is not null
+
+#Display 5 records where launch sites begin with the string 'CCA'
+%sql SELECT Launch_Site FROM SPACEXTABLE WHERE Launch_Site LIKE 'CCA%' LIMIT 5;
+
+#Display the total payload mass carried by boosters launched by NASA (CRS)
+%sql SELECT SUM(PAYLOAD_MASS__KG_) AS Total_PayLoad_Mass FROM SPACEXTABLE WHERE Customer = 'NASA (CRS)';
+
+#Display average payload mass carried by booster version F9 v1.1
+%sql SELECT AVG(PAYLOAD_MASS__KG_) AS Average_Payload_Mass FROM SPACEXTABLE WHERE Booster_Version = 'F9 v1.1';
+
+#List the date when the first successful landing outcome in ground pad was achieved.
+%sql SELECT MIN(Date) AS First_Successful_Landing FROM SPACEXTABLE WHERE Landing_Outcome = 'Success (ground pad)';
+
+#List the names of the boosters which have success in drone ship and have payload mass greater than 4000 but less than 6000¶
+%sql SELECT Booster_Version FROM SPACEXTABLE WHERE Landing_Outcome = 'Success (drone ship)' AND 4000 < PAYLOAD_MASS__KG_ < 6000;
+
+#List the total number of successful and failure mission outcomes
+%sql SELECT COUNT(Mission_Outcome) AS Total_number_missions FROM SPACEXTABLE;
+
+#List all the booster_versions that have carried the maximum payload mass, using a subquery with a suitable aggregate function.
+%sql SELECT Booster_Version FROM SPACEXTABLE WHERE PAYLOAD_MASS__KG_ = (SELECT MAX(PAYLOAD_MASS__KG_) FROM SPACEXTABLE);
+
+#List the records which will display the month names, failure landing_outcomes in drone ship ,booster versions, launch_site for the months in year 2015.
+%sql SELECT CASE substr(Date, 6,2) WHEN'01' THEN 'January'  WHEN '02' THEN 'February' WHEN '03' THEN 'March' WHEN '04' THEN 'April' WHEN '05' THEN 'May' WHEN '06' THEN 'June' WHEN '07' THEN 'July' WHEN '08' THEN 'August' WHEN '09' THEN 'September' WHEN '10' THEN 'October' WHEN '11' THEN 'November' WHEN '12' THEN 'December' END AS Month_Name, Landing_Outcome, Booster_Version, Launch_Site FROM SPACEXTABLE WHERE Landing_Outcome = 'Failure (drone ship)' AND substr(Date,0,5) = '2015';        
+
+
+#Rank the count of landing outcomes (such as Failure (drone ship) or Success (ground pad)) between the date 2010-06-04 and 2017-03-20, in descending order.
+%sql SELECT Landing_Outcome, COUNT(*) AS Outcome_count FROM SPACEXTABLE WHERE Date BETWEEN '2010-06-04' AND '2017-03-20' GROUP BY Landing_Outcome ORDER BY Outcome_count DESC;
