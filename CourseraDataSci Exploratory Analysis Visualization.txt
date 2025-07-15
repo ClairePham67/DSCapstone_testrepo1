@@ -1,0 +1,93 @@
+CourseraDataSci Exploratory Analysis Visualization 
+import piplite
+await piplite.install(['numpy'])
+await piplite.install(['pandas'])
+await piplite.install(['seaborn'])
+
+# pandas is a software library written for the Python programming language for data manipulation and analysis.
+import pandas as pd
+#NumPy is a library for the Python programming language, adding support for large, multi-dimensional arrays and matrices, along with a large collection of high-level mathematical functions to operate on these arrays
+import numpy as np
+# Matplotlib is a plotting library for python and pyplot gives us a MatLab like plotting framework. We will use this in our plotter function to plot data.
+import matplotlib.pyplot as plt
+#Seaborn is a Python data visualization library based on matplotlib. It provides a high-level interface for drawing attractive and informative statistical graphics
+import seaborn as sns
+
+
+#Fetch and load a CSV file into a pandas DataFrame in a Jupyter Notebook 
+from js import fetch
+import io
+
+URL = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_2.csv"
+resp = await fetch(URL) #fetch funct returns a response object like in JavaScript
+dataset_part_2_csv = io.BytesIO((await resp.arrayBuffer()).to_py())  #resp.arrayBuffer() reads the response body as binary data. .to_py() converts the JS binary array buffer into a Python object. io.BytesIO(...) creates an in-memory file-									like byte stream from that data.
+df = pd.read_csv(dataset_part_2_csv)
+df.head(5)
+
+
+#Plot out FlightNumber vs PayloadMass
+sns.catplot(y="PayloadMass", x="FlightNumber", hue="Class", data=df, aspect = 5)
+plt.xlabel("Flight Number",fontsize=20)
+plt.ylabel("Pay load Mass (kg)",fontsize=20)
+plt.show()
+
+#Visualize the relationship between success rate of each orbit type
+# Step 1: Compute success rate per orbit
+orbit_success_rate = df.groupby('Orbit')['Class'].mean().reset_index()
+# Step 2: Create a bar chart using sns.catplot
+sns.catplot(x="Orbit", y="Class", kind="bar", data=orbit_success_rate, aspect=2, height=6)
+plt.xlabel("Orbit Type", fontsize=14)
+plt.ylabel("Success Rate", fontsize=14)
+plt.title("Success Rate by Orbit Type", fontsize=16)
+plt.xticks(rotation=45)
+plt.ylim(0, 1)
+plt.grid(axis='y', linestyle='--', alpha=0.5)
+plt.show()
+
+#Visualize the launch success yearly trend
+# A function to Extract years from the date 
+year=[]
+def Extract_year():
+    for i in df["Date"]:
+        year.append(i.split("-")[0])
+    return year
+Extract_year()
+df['Date'] = year
+df.head()
+
+#Plot a line chart with x axis to be the extracted year and y axis to be the success rate
+yearly_success_rate = df.groupby('Date')['Class'].mean().reset_index() # Step 1: Group by 'Date' (which now contains year) and calculate success rate
+# Step 2: Plot the line chart
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=yearly_success_rate, x='Date', y='Class', marker='o')
+
+# Step 3: Customize labels and title
+plt.xlabel('Year', fontsize=14)
+plt.ylabel('Success Rate', fontsize=14)
+plt.title('Success Rate by Year', fontsize=16)
+plt.ylim(0, 1)
+plt.grid(True)
+plt.show()
+
+
+#Create dummy variables to categorical cols
+features = df[['FlightNumber', 'PayloadMass', 'Orbit', 'LaunchSite', 'Flights', 'GridFins', 'Reused', 'Legs', 'LandingPad', 'Block', 'ReusedCount', 'Serial']]
+features_one_hot = pd.get_dummies(features, 
+                                  columns=['Orbit', 'LaunchSite', 'LandingPad', 'Serial'])
+
+# Display the first few rows
+features_one_hot.head()
+# Cast all columns to float64
+features_one_hot = features_one_hot.astype('float64')
+
+# Confirm with a quick check
+features_one_hot.dtypes.head()
+
+
+
+
+
+
+
+
+
